@@ -2,226 +2,9 @@
 #### Script for the whole analysis of screening results #####
 #############################################################
 
-## libraries
-library(dplyr)
-library(readxl)
-library(writexl)
-library(tools)
-library(stringr)
-library(ggplot2)
-library(tidyverse)
-library(dplyr)
-
-#add date and create folder with the date
-date <- format(Sys.Date(), "%Y_%m_%d")
-dir.create(paste0("c://Users/theinone/Desktop/Screening_data/Results/", date), showWarnings = FALSE)
-dir.create(paste0("c://Users/theinone/Desktop/Screening_data/Results/", date, "/resistant"), showWarnings = FALSE)
-dir.create(paste0("c://Users/theinone/Desktop/Screening_data/Results/", date, "/hypersensitive"), showWarnings = FALSE)
-dir.create(paste0("c://Users/theinone/Desktop/Screening_data/Results/", date, "/plots"), showWarnings = FALSE)
-dir.create(paste0("c://Users/theinone/Desktop/Screening_data/Results/", date, "/hypersensitive/GO_terms"), showWarnings = FALSE)
-
-
-setwd("c://Users/theinone/Desktop/Screening_data/Raw_data/")
-
-dir.create("./merged_data", showWarnings = FALSE)
-
-list_merged <- list()
-
-list_folders <- dir(pattern="OD_measurement_KEIO_\\d\\d")
-
-for (D in list_folders){
-  
-  # setwd(file.path(D))
-  
-  
-  ## Create a loop for all the plates
-  
-  input_file_list <- list.files(file.path(D), pattern = "KEIO_\\d\\d_Plate\\w_T\\d")
-  
-  for (F in input_file_list){
-    print(F)
-    new_name <- file_path_sans_ext(basename(F)) ## extract name
-    datasets <- as.data.frame(read_excel(file.path(D,F), skip = 13)) ## import only lines we need
-    colnames(datasets)[1] <- "row_letter" ## change column name 
-    datasets[,"plate"] <- new_name ## add name of the plate in the table
-    
-    ## Extract parts of plate name
-    
-    plate_letter <- str_extract(new_name,pattern = "[A-C]")
-    
-    timepoint <- str_extract(new_name,pattern = "T\\d")
-    
-    
-    ## Divide the table in four to have the letters, the control and the TAT-treated values + add 1 column to identify the well from the original KEIO plate
-    
-    df_1_fourth <- datasets[c(1,2,3)]
-    df_2_fourth <- datasets[c(1,4,5)]
-    df_3_fourth <- datasets[c(1,6,7)]
-    df_4_fourth <- datasets[c(1,8,9)]
-    
-    
-    ## Do conditions according to plate name (A,B,C), i.e. samples in the plate
-    
-    if (plate_letter == "A"){
-      df_1_fourth$sample <- 1
-      df_2_fourth$sample <- 2
-      df_3_fourth$sample <- 3
-      df_4_fourth$sample <- 4
-      
-      
-    } else if (plate_letter == "B"){
-      df_1_fourth$sample <- 5
-      df_2_fourth$sample <- 6
-      df_3_fourth$sample <- 7
-      df_4_fourth$sample <- 8       
-      
-      
-    } else if (plate_letter == "C"){
-      df_1_fourth$sample <- 9
-      df_2_fourth$sample <- 10
-      df_3_fourth$sample <- 11
-      df_4_fourth$sample <- 12
-    }
-    ## Code to rename the columns
-    
-    column_names <- function(df_fourth, timepoint){
-      
-      print(timepoint)
-      if (timepoint == "T0"){
-        colnames(df_fourth)  <- c("row_letter", "gene_CTR_T0", "gene_TAT_T0", "sample")
-        
-      } else if (timepoint == "T1"){
-        colnames(df_fourth)  <- c("row_letter", "gene_CTR_T1", "gene_TAT_T1", "sample")
-        
-      } else if (timepoint == "T2"){
-        colnames(df_fourth)  <- c("row_letter", "gene_CTR_T2", "gene_TAT_T2", "sample")
-        
-      } else if (timepoint == "T3"){
-        colnames(df_fourth)  <- c("row_letter", "gene_CTR_T3", "gene_TAT_T3", "sample")
-        
-      } else if (timepoint == "T4"){
-        colnames(df_fourth)  <- c("row_letter", "gene_CTR_T4", "gene_TAT_T4", "sample")
-      }
-      
-      return(df_fourth)
-      
-    }
-    
-    
-    ## Rename columns names with conditions so that each fourth has the same column names (required for merging)
-    
-    df_fourth <- list(df_1_fourth, df_2_fourth, df_3_fourth, df_4_fourth)
-    
-    df_fourth2 <- lapply(df_fourth, column_names, timepoint = timepoint)
-    
-    
-    ## Merge the fourths together
-    
-    Plate <- do.call("rbind", df_fourth2)
-    
-    
-    ## Add the name of the sample and the plate
-    
-    Plate$KEIO_Plate <- str_extract(new_name,pattern = "KEIO_\\d\\d")
-    Plate$Well <- paste0(Plate$row_letter, Plate$sample)
-    Plate$Sample_ID <- paste(Plate$KEIO_Plate, Plate$Well, sep="_")
-    
-    Plate$Well <- NULL
-    Plate$KEIO_Plate <- NULL
-    Plate$row_letter <- NULL
-    Plate$sample <- NULL
-    
-    
-    ## Add the controls to each row
-    
-    Plate[[paste0("WT_CTR_",timepoint)]] <- as.numeric(datasets[6,12])
-    Plate[[paste0("WT_TAT_",timepoint)]] <- as.numeric(datasets[6,13])
-    Plate[[paste0("EnvZD233N_CTR_",timepoint)]] <- as.numeric(datasets[7,12])
-    Plate[[paste0("EnvZD233N_TAT_",timepoint)]] <- as.numeric(datasets[7,13])
-    Plate[[paste0("LB_CTR_",timepoint)]] <- as.numeric(datasets[8,12])
-    Plate[[paste0("LB_TAT_",timepoint)]] <- as.numeric(datasets[8,13])
-    
-    Plate$Timepoint <- timepoint
-    
-    Plate <- Plate[c(3, 1, 2, 4, 5, 6, 7, 8, 9, 10)]
-    
-    ## Save in excel format with part of the information from the table (old version)
-    
-    dir.create(file.path(D,"merged"), showWarnings = FALSE)
-    
-    write_xlsx(x = Plate,file.path(D,"merged",paste0(new_name, "_merged.xlsx")))
-    
-    
-  }
-  
-  
-  
-  
-  ## Upload dataset
-  input_file_list <- list.files(file.path(D,"merged"), pattern = "KEIO_\\d\\d_Plate\\w_T\\d")
-  PlateA_data <- list()
-  PlateB_data <- list()
-  PlateC_data <- list()
-  
-  for(G in input_file_list){
-    print(G)
-    new_name <- file_path_sans_ext(basename(G)) ## extract name
-    plate_letter <- str_extract(new_name,pattern = "[A-C]")
-    temp <- read_excel(file.path(D,"merged",G))
-    temp$Timepoint <- NULL
-    
-    
-    ## Place in corresponding directory
-    
-    if (plate_letter=="A"){
-      PlateA_data[[paste(new_name, "temp", sep = "_")]] <- temp
-    }else if (plate_letter=="B"){
-      PlateB_data[[paste(new_name, "temp", sep = "_")]] <- temp
-    }else if (plate_letter=="C"){
-      PlateC_data[[paste(new_name, "temp", sep = "_")]] <- temp
-    }
-  }  
-  ## Merge datasets
-  merged.data.frameA = Reduce(function(...) merge(..., all=T), PlateA_data)
-  merged.data.frameB = Reduce(function(...) merge(..., all=T), PlateB_data)
-  merged.data.frameC = Reduce(function(...) merge(..., all=T), PlateC_data)
-  
-  
-  
-  ## Rbind datasets
-  
-  binding_list <- list(merged.data.frameA, merged.data.frameB, merged.data.frameC)
-  Final_plate <- do.call("rbind", binding_list)
-  
-  
-  
-  
-  ## Save as excel
-  
-  write_xlsx(x = Final_plate,file.path("c://Users/theinone/Desktop/Screening_data/merged_data/individual_plates/",paste0(D,".xlsx")))
-  
-  
-  
-  list_merged[[D]] <- Final_plate
-  
-}
-
-Mega_coqueliquot_plate <- do.call("rbind", list_merged)
-write_xlsx(x = Mega_coqueliquot_plate,file.path(paste0("merged_data",date,"Mega_coqueliquot_plate.xlsx")))
-
-## Add KEIO IDs
-
-temp <- read_excel("c://Users/theinone/Desktop/screening_data/KEIO_samples_products.xlsx")
-merged_viseversa <- right_join(temp,Mega_coqueliquot_plate, by="Sample_ID")
-write_xlsx(x = merged_viseversa, file.path(paste0("c://Users/theinone/Desktop/screening_data/Results/",date, "/", date, "_screening_data_with_genes.xlsx")))
-
-
-##########################################################################
-##################### Calculations #######################################
-##########################################################################
-
 ## upload libraries
 library(tidyverse)
+library(dplyr)
 library(readxl)
 library(writexl)
 library(reshape2)
@@ -229,17 +12,12 @@ library(MESS)
 library(ggplot2)
 library(scales)
 library(svglite)
+library(GO.db)
 
 ########################################################################
 
-# set where you are
-setwd("c://Users/theinone/Desktop/Screening_data/")
-
-
 #read the most recent excel
-list.files("./Raw_data/merged_data/")
-c_temp <- merged_viseversa
-#c_temp <- read_excel("./Raw_data/merged_data/2020_07_09_screening_data_with_genes.xlsx")
+#c_temp <- read_excel("./screening_data_with_genes.xlsx")
 
 #add columns with measurement value minus T0 measurement value
 c_temp$gene_CTR_T0_minusT0 <- c_temp$gene_CTR_T0 - c_temp$gene_CTR_T0
@@ -274,17 +52,10 @@ c_temp$FoldChange_gene_T4 <- c_temp$gene_TAT_T4_minusT0 / c_temp$gene_CTR_T4_min
 c_temp$FoldChange_WT_T3 <- c_temp$WT_TAT_T3_minusT0 / c_temp$WT_CTR_T3_minusT0
 c_temp$FoldChange_WT_T4 <- c_temp$WT_TAT_T4_minusT0 / c_temp$WT_CTR_T4_minusT0
 
-## rename file
-new_c_temp <- c_temp
 
 #### Calculate foldchange gene vs WT
-new_c_temp$FoldChange_genevsWT_T3 <- new_c_temp$FoldChange_gene_T3 / new_c_temp$FoldChange_WT_T3
-new_c_temp$FoldChange_genevsWT_T4 <- new_c_temp$FoldChange_gene_T4 / new_c_temp$FoldChange_WT_T4
-
-#############################################################
-
-### save the table with all the data
-write_xlsx(x = new_c_temp, file.path(paste0("C://Users/theinone/Desktop/Screening_data/Results/", date, "/merged_minusT0_calculation.xlsx")))
+c_temp$FoldChange_genevsWT_T3 <- c_temp$FoldChange_gene_T3 / c_temp$FoldChange_WT_T3
+c_temp$FoldChange_genevsWT_T4 <- c_temp$FoldChange_gene_T4 / c_temp$FoldChange_WT_T4
 
 ############################################################
 
@@ -294,19 +65,19 @@ write_xlsx(x = new_c_temp, file.path(paste0("C://Users/theinone/Desktop/Screenin
 ## calculate mean and sd
 
 ## T3
-mean_FoldChange_T3_WT <- mean(new_c_temp$FoldChange_WT_T3)
-sd_FoldChange_T3_WT <- sd(new_c_temp$FoldChange_WT_T3)
-maxValue_T3 <- max(new_c_temp$FoldChange_gene_T3)
+mean_FoldChange_T3_WT <- mean(c_temp$FoldChange_WT_T3)
+sd_FoldChange_T3_WT <- sd(c_temp$FoldChange_WT_T3)
+maxValue_T3 <- max(c_temp$FoldChange_gene_T3)
 
 ## T4
-mean_FoldChange_T4_WT <- mean(new_c_temp$FoldChange_WT_T4)
-sd_FoldChange_T4_WT <- sd(new_c_temp$FoldChange_WT_T4)
+mean_FoldChange_T4_WT <- mean(c_temp$FoldChange_WT_T4)
+sd_FoldChange_T4_WT <- sd(c_temp$FoldChange_WT_T4)
 
 ### plot the distribution of the points to select the best thresholds
-new_c_temp_growth <- filter(new_c_temp, gene_CTR_T4_minusT0 > 0.4)
+c_temp_growth <- filter(c_temp, gene_CTR_T4_minusT0 > 0.4)
 
 ## T3 histogram
-p <- ggplot(new_c_temp_growth, aes(FoldChange_gene_T3))
+p <- ggplot(c_temp_growth, aes(FoldChange_gene_T3))
 p + geom_histogram(fill = "lightblue", alpha = 0.5, size = 1, binwidth = 0.01) + 
   theme_minimal() + 
   geom_vline(xintercept = mean_FoldChange_T3_WT, color = "black", size = 1) +
@@ -358,7 +129,7 @@ p + geom_density(fill = "lightblue", alpha = 0.5, size = 1) +
 ggsave(paste0("c://Users/theinone/Desktop/Screening_data/Results/", date, "/plots/T3_arrow.svg"), width = 6, height = 4)
 
 ## T4
-q <- ggplot(new_c_temp_growth, aes(FoldChange_gene_T4))
+q <- ggplot(c_temp_growth, aes(FoldChange_gene_T4))
 q + geom_density(fill = "red", alpha = 0.5, size = 1) + 
   theme_bw() + 
   geom_vline(xintercept = mean_FoldChange_T4_WT, color = "black", size = 1) +
@@ -391,11 +162,11 @@ limit_T4_moresensitive <- mean_FoldChange_T4_WT - sd_FoldChange_T4_WT
 
 ### Add information on resistance based on AUC, T3 and T4 foldchanges
 ## T3
-new_c_temp_growth$T3_result <- with(new_c_temp_growth, 
+c_temp_growth$T3_result <- with(c_temp_growth, 
                                     ifelse(FoldChange_gene_T3 > limit_T3_resistant, "resistant", 
                                            ifelse(FoldChange_gene_T3 < limit_T3_hypersensitive, "hypersensitive", "no effect")))
 ## T4
-new_c_temp_growth$T4_result <- with(new_c_temp_growth, ifelse(FoldChange_gene_T4 > limit_T4_resistant, "resistant", 
+c_temp_growth$T4_result <- with(c_temp_growth, ifelse(FoldChange_gene_T4 > limit_T4_resistant, "resistant", 
                                                               ifelse(FoldChange_gene_T4 < limit_T4_hypersensitive, "hypersensitive", 
                                                                      ifelse(FoldChange_gene_T4 > limit_T4_hypersensitive & FoldChange_gene_T4 < limit_T4_moresensitive, "more sensitive", 
                                                                             "no effect"))))
@@ -405,55 +176,32 @@ resistant_1sd <- mean_FoldChange_T3_WT + sd_FoldChange_T3_WT
 resistant_3sd <- mean_FoldChange_T3_WT + 3*sd_FoldChange_T3_WT
 
 # add a column with this new information
-new_c_temp_growth$T3_more_less_resistant <- with(new_c_temp_growth, 
+c_temp_growth$T3_more_less_resistant <- with(c_temp_growth, 
                                                  ifelse(FoldChange_gene_T3 > resistant_3sd, "3*sd resistant", 
                                                         ifelse(FoldChange_gene_T3 > resistant_1sd, "1*sd resistant", "no resistance")))
 
-#############################################################
-
-### save the table with all the data
-write_xlsx(x = new_c_temp_growth, file.path(paste0("C://Users/theinone/Desktop/Screening_data/Results/", date, "/merged_minusT0_calculation_threshold.xlsx")))
 
 ############################################################
 
 ########### Selection resistant strains
-resistant_selection_T3 <- filter(new_c_temp_growth, T3_result == "resistant")
+resistant_selection_T3 <- filter(c_temp_growth, T3_result == "resistant")
 resistant_selection_T3$replicate <- duplicated(resistant_selection_T3$gene_name)
 resistant_selection_T3 <- resistant_selection_T3 %>% drop_na(locus_tag)
-write_xlsx(resistant_selection_T3, file.path(paste0("c://Users/theinone/Desktop/Screening_data/Results/", date, "/resistant/resistant_selection_T3.xlsx")))
-
-resistant_selection_T4 <- filter(new_c_temp_growth, T4_result == "resistant")
-resistant_selection_T4$replicate <- duplicated(resistant_selection_T4$gene_name)
-resistant_selection_T4 <- resistant_selection_T4 %>% drop_na(locus_tag)
-write_xlsx(resistant_selection_T4, file.path(paste0("c://Users/theinone/Desktop/Screening_data/Results/", date, "/resistant/resistant_selection_T4.xlsx")))
-
 
 ########### Selection hypersensitive strains
-hypersensitive_selection_T3 <- filter(new_c_temp_growth, T3_result == "hypersensitive")
-hypersensitive_selection_T3$replicate <- duplicated(hypersensitive_selection_T3$gene_name)
-hypersensitive_selection_T3 <- hypersensitive_selection_T3 %>% drop_na(locus_tag)
-write_xlsx(hypersensitive_selection_T3, file.path(paste0("c://Users/theinone/Desktop/Screening_data/Results/", date, "/hypersensitive/hypersensitive_selection_T3.xlsx")))
-
-hypersensitive_selection_T4 <- filter(new_c_temp_growth, T4_result == "hypersensitive")
+hypersensitive_selection_T4 <- filter(c_temp_growth, T4_result == "hypersensitive")
 hypersensitive_selection_T4$replicate <- duplicated(hypersensitive_selection_T4$gene_name)
 hypersensitive_selection_T4 <- hypersensitive_selection_T4 %>% drop_na(locus_tag)
-write_xlsx(hypersensitive_selection_T4, file.path(paste0("c://Users/theinone/Desktop/Screening_data/Results/", date, "/hypersensitive/hypersensitive_selection_T4.xlsx")))
 
-moresensitive_selection_T4 <- filter(new_c_temp_growth, T4_result == "more sensitive")
+moresensitive_selection_T4 <- filter(c_temp_growth, T4_result == "more sensitive")
 moresensitive_selection_T4$replicate <- duplicated(moresensitive_selection_T4$gene_name)
 moresensitive_selection_T4 <- moresensitive_selection_T4 %>% drop_na(locus_tag)
-write_xlsx(moresensitive_selection_T4, file.path(paste0("c://Users/theinone/Desktop/Screening_data/Results/", date, "/hypersensitive/moresensitive_selection_T4.xlsx")))
 
 ############################################################
 
 ############################################################
 ### Add gene ontology (GO) information #####################
 ############################################################
-
-library(GO.db)
-
-
-setwd("c://Users/theinone/Desktop/Screening_data/")
 
 #### Upload the data you need ####
 # upload gpad file
@@ -510,22 +258,16 @@ for(F in names(list_datasets)){
   datasets_withGO[[F]] <- table_hits_go
 }
 
-### extract the different tables from the dataset and save them in excel
+### extract the different tables from the dataset
 ## data with GO count
 resistant_selection_T3_GO_count <- datasets_withGO_count[["resistant_selection_T3"]]
-write_xlsx(resistant_selection_T3_GO_count, file.path(paste0("./Results/", date, "/resistant/resistant_selection_T3_GO_count.xlsx")))
 hypersensitive_selection_T4_GO_count <- datasets_withGO_count[["hypersensitive_selection_T4"]]
-write_xlsx(hypersensitive_selection_T4_GO_count, file.path(paste0("./Results/", date, "/hypersensitive/hypersensitive_selection_T4_GO_count.xlsx")))
 moresensitive_selection_T4_GO_count <- datasets_withGO_count[["moresensitive_selection_T4"]]
-write_xlsx(moresensitive_selection_T4_GO_count, file.path(paste0("./Results/", date, "/hypersensitive/moresensitive_selection_T4_GO_count.xlsx")))
 
 ## data with GO ID and GO name
 resistant_selection_T3_GO <- datasets_withGO[["resistant_selection_T3"]]
-write_xlsx(resistant_selection_T3_GO, file.path(paste0("./Results/", date, "/resistant/resistant_selection_T3_GO_terms.xlsx")))
 hypersensitive_selection_T4_GO <- datasets_withGO[["hypersensitive_selection_T4"]]
-write_xlsx(hypersensitive_selection_T4_GO, file.path(paste0("./Results/", date, "/hypersensitive/hypersensitive_selection_T4_GO_terms.xlsx")))
 moresensitive_selection_T4_GO <- datasets_withGO[["moresensitive_selection_T4"]]
-write_xlsx(moresensitive_selection_T4_GO, file.path(paste0("./Results/", date, "/hypersensitive/moresensitive_selection_T4_GO_terms.xlsx")))
 
 ############################################################
 ### GO term analysis for hypersensitive strains ############
@@ -561,9 +303,7 @@ g + geom_bar(stat = "identity", fill = "plum1", color = "black", width = 0.7, si
   scale_x_discrete(labels = function(x) str_wrap(x, width = 30)) +
   theme_bw() +
   labs(x = NULL, y = "Number of hypersensitive strains", title = "Biological processes (BP)")
-ggsave(paste0("c://Users/theinone/Desktop/Screening_data/Results/", date, "/hypersensitive/GO_terms/BP_plot.png"), width = 4, height = 4)
-# save data for BP
-write_xlsx(x = hypersensitive_selection_T4_GO_BP_count, file.path(paste0("c://Users/theinone/Desktop/Screening_data/Results/", date, "/hypersensitive/GO_terms/BP_counts.xlsx")))
+ggsave(paste0("./BP_plot.png"), width = 4, height = 4)
 
 # make a plot for CC 
 hypersensitive_selection_T4_GO_CC_count_plot <- ungroup(hypersensitive_selection_T4_GO_CC_count) %>% top_n(n=10, n)
@@ -573,9 +313,7 @@ g + geom_bar(stat = "identity", fill = "plum2", color = "black", width = 0.7, si
   scale_x_discrete(labels = function(x) str_wrap(x, width = 30)) +
   theme_bw() +
   labs(x = NULL, y = "Number of hypersensitive strains", title = "Cellular components (CC)")
-ggsave(paste0("c://Users/theinone/Desktop/Screening_data/Results/", date, "/hypersensitive/GO_terms/CC_plot.png"), width = 4, height = 4)
-# save data for CC
-write_xlsx(x = hypersensitive_selection_T4_GO_CC_count, file.path(paste0("c://Users/theinone/Desktop/Screening_data/Results/", date, "/hypersensitive/GO_terms/CC_counts.xlsx")))
+ggsave(paste0("./CC_plot.png"), width = 4, height = 4)
 
 # make a plot for MF 
 hypersensitive_selection_T4_GO_MF_count_plot <- ungroup(hypersensitive_selection_T4_GO_MF_count) %>% top_n(n=10, n)
@@ -585,10 +323,7 @@ g + geom_bar(stat = "identity", fill = "plum3", color = "black", width = 0.7, si
   scale_x_discrete(labels = function(x) str_wrap(x, width = 30)) +
   theme_bw() +
   labs(x = NULL, y = "Number of hypersensitive strains", title = "Molecular function (MF)")
-ggsave(paste0("c://Users/theinone/Desktop/Screening_data/Results/", date, "/hypersensitive/GO_terms/MF_plot.png"), width = 4, height = 4)
-# save data for MF
-write_xlsx(x = hypersensitive_selection_T4_GO_MF_count, file.path(paste0("c://Users/theinone/Desktop/Screening_data/Results/", date, "/hypersensitive/GO_terms/MF_counts.xlsx")))
-
+ggsave(paste0("./MF_plot.png"), width = 4, height = 4)
 
 ############################################################
 ############ Add KEGG information ##########################
@@ -596,8 +331,6 @@ write_xlsx(x = hypersensitive_selection_T4_GO_MF_count, file.path(paste0("c://Us
 
 ##libraries
 library(KEGGREST)
-library(dplyr)
-library(ggplot2)
 library(reshape2)
 
 ## upload KEIO library list
@@ -622,9 +355,6 @@ df_description <- data.frame(pathway_ID=names(pathway_description), pathway_desc
 KEGG_df_temp <- left_join(df_ko, df_pathways, by = "eco_ID")
 KEGG_df <- left_join(KEGG_df_temp, df_description, by ="pathway_ID")
 KEIO_samples_ko <- left_join(KEIO_samples, KEGG_df, by = "eco_ID")
-
-## save dataframe
-write_xlsx(x = KEIO_samples_ko, file.path(paste0("c://Users/theinone/Desktop/Screening_data/kegg/", date, "_KEIO_KEGG_list.xlsx")))
 
 ##################################################
 ########## COUNT NUMBER GENES / PATHWAY ##########
@@ -660,13 +390,9 @@ number_unique_genes_pathway <- as.numeric(nrow(unique_genes_pathway))
 pathways_KEIO_count$fraction_genome <- NA
 pathways_KEIO_count$fraction_genome <- round((pathways_KEIO_count$number_genome / number_unique_genes), digits = 3)
 
-# save as excel file
-write_xlsx(x = pathways_KEIO_count, file.path(paste0("c://Users/theinone/Desktop/Screening_data/kegg/", date, "_KEIO_pathways_count.xlsx")))
-
 ##########################################################
 ########## MERGE KEGG INFO WITH SELECTION GENES ##########
 ##########################################################
-
 
 ## open the list with all information about the genes and pathways 
 KEIO_KEGG_list <- KEIO_samples_ko[c("locus_tag", "eco_ID", "pathway_ID", "pathway_description")]
