@@ -1,3 +1,7 @@
+#################################################################################
+####################### KEGG pathway enrichment analysis ########################
+#################################################################################
+
 ##libraries
 library(KEGGREST)
 library(tidyverse)
@@ -65,6 +69,11 @@ pathways_KEIO_count$fraction_genome <- round((pathways_KEIO_count$number_genome 
 
 ### count number of gene deletion inducing hypersensitivity in each KEGG pathway
 
+# open the list with all information about the genes and pathways 
+KEIO_KEGG_list <- KEIO_samples_ko[c("locus_tag", "eco_ID", "pathway_ID", "pathway_description")]
+KEIO_KEGG_percentage_genome <- pathways_KEIO_count %>% dplyr::select(pathway_ID, number_genome, fraction_genome)
+
+# add the information to the selection of hypersensitive
 hypersensitive_selection_T4_KEGG <- left_join(hypersensitive_selection_T4[2:3], KEIO_KEGG_list, by = "locus_tag")
 hypersensitive_selection_T4_KEGG <- unique(hypersensitive_selection_T4_KEGG)
 count_hypersensitive_selection_T4_KEGG <- hypersensitive_selection_T4_KEGG %>%
@@ -108,9 +117,9 @@ hypersensitive_selection <- hypersensitive_selection %>%
 
 # select 
 hypersensitive_selection_plot <- ungroup(hypersensitive_selection) %>% filter(number_T4 > 1) %>%
-  top_n(n=10, hypersensitive_fraction_ingenome)
+  top_n(n=10, fraction_ingenome)
 
-ggplot(hypersensitive_selection_plot, aes(x=reorder(pathway_description, hypersensitive_fraction_ingenome), y = hypersensitive_fraction_ingenome)) +
+ggplot(hypersensitive_selection_plot, aes(x=reorder(pathway_description, fraction_ingenome), y = fraction_ingenome)) +
   geom_point(shape = 21, color = "black", fill = "pink", aes(size=number_T4)) +
   coord_flip() +
   theme_bw() +
@@ -118,5 +127,7 @@ ggplot(hypersensitive_selection_plot, aes(x=reorder(pathway_description, hyperse
   scale_y_continuous(limits = c(0.2, 0.6))
 
 
-
+#################################################################################
+################# END script KEGG pathway enrichment analysis ###################
+#################################################################################
 
