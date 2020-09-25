@@ -1,3 +1,7 @@
+################################################################################
+############################### GO term analysis ###############################
+################################################################################
+
 ## libraries
 library(tidyverse)
 library(readxl)
@@ -5,7 +9,7 @@ library(tools)
 library(stringr)
 library(GO.db)
 
-#### Upload the data you need ####
+### upload the data you need 
 # upload gpad file from GO database
 url_gpad <- "http://current.geneontology.org/annotations/ecocyc.gpad.gz"
 tmp_gpad <- tempfile()
@@ -96,4 +100,6 @@ g + geom_bar(stat = "identity", fill = "plum3", color = "black", width = 0.7, si
   theme_bw() +
   labs(x = NULL, y = "Number of hypersensitive strains", title = "Molecular function (MF)")
 
-
+#################################################################################
+########################## END script GO term analysis ##########################
+#################################################################################
