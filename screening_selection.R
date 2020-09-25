@@ -48,8 +48,8 @@ sd_FoldChange_T3_WT <- sd(c_temp$FoldChange_WT_T3)
 maxValue_T3 <- max(c_temp$FoldChange_gene_T3)
 
 ## T4
-mean_FoldChange_T4_WT <- mean(new_c_temp$FoldChange_WT_T4)
-sd_FoldChange_T4_WT <- sd(new_c_temp$FoldChange_WT_T4)
+mean_FoldChange_T4_WT <- mean(c_temp$FoldChange_WT_T4)
+sd_FoldChange_T4_WT <- sd(c_temp$FoldChange_WT_T4)
 
 ## select only genes that did grow more to more than 0.4 OD600 at 24h without peptide
 new_c_temp_growth <- filter(c_temp, gene_CTR_T4_minusT0 > 0.4)
@@ -87,6 +87,16 @@ q + geom_density(fill = "red", alpha = 0.5, size = 1) +
   geom_text(aes(x = mean_FoldChange_T4_WT - 0.39, y = 2.2, label = "sensitive"), color = "black", size = 5) +
   geom_segment(aes(x = mean_FoldChange_T4_WT - 3*sd_FoldChange_T3_WT, y = 2, xend = mean_FoldChange_T4_WT - sd_FoldChange_T4_WT, yend = 2), arrow = arrow(length = unit(0.4, "cm")), size = 1) +
   geom_segment(aes(x = mean_FoldChange_T4_WT - sd_FoldChange_T3_WT, y = 2, xend = mean_FoldChange_T4_WT - 3*sd_FoldChange_T4_WT, yend = 2), arrow = arrow(length = unit(0.4, "cm")), size = 1)
+
+### Determine the thresholds based on graphs
+## T3
+limit_T3_resistant <- mean_FoldChange_T3_WT + 2*sd_FoldChange_T3_WT
+limit_T3_hypersensitive <- mean_FoldChange_T3_WT - 2*sd_FoldChange_T3_WT
+
+## T4
+limit_T4_resistant <- mean_FoldChange_T4_WT + 2*sd_FoldChange_T4_WT
+limit_T4_hypersensitive <- mean_FoldChange_T4_WT - 3*sd_FoldChange_T4_WT
+limit_T4_moresensitive <- mean_FoldChange_T4_WT - sd_FoldChange_T4_WT
 
 ### Add information on resistance based on T3 and T4 foldchanges
 ## T3
