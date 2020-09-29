@@ -10,7 +10,7 @@ library(tools)
 library(stringr)
 
 ## upload dataset
-c_temp <- read_excel("./dataset1.xlsx")
+c_temp <- read_excel("./dataset2.xlsx")
 
 #add columns with measurement value minus T0 measurement value
 c_temp$gene_CTR_T0_minusT0 <- c_temp$gene_CTR_T0 - c_temp$gene_CTR_T0
