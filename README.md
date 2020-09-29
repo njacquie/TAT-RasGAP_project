@@ -1,4 +1,4 @@
-TAT-RasGAP project
+#TAT-RasGAP project
 
 This project contains scripts for the analysis of screening data. The screening was performed on the E. coli KEIO collection of deletions mutants. Each mutant was grown in the presence or absence of the antimicrobial peptide (AMP) TAT-RasGAP.
 
