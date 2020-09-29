@@ -8,7 +8,7 @@ The screening_selection.R script contains the information about the calculation 
 
 The screening_GO.R and screening_KEGG.R scripts contain the information about GO and KEGG enrichment analysis for the set of hypersensitive genes. 
 
-The results of this analysis are in a manuscript on bioRxiv and submitted for publication.
+The results of this analysis are in a manuscript submitted for publication.
 
 
 
